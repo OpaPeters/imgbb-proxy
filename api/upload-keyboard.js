@@ -1,45 +1,31 @@
-export const config = {
-  api: {
-    bodyParser: { sizeLimit: '10mb' }
-  }
-};
-
 export default async function handler(req, res) {
+  // 1️⃣ CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  // 2️⃣ Preflight request afhandelen
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
 
+  // 3️⃣ Alleen POST toestaan
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Only POST allowed' });
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
   }
 
   try {
     const { image } = req.body;
-    if (!image) return res.status(400).json({ error: 'No image provided' });
+    if (!image) throw new Error('No image provided');
 
-    const apiKey = process.env.IMGBB_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: 'Missing IMGBB_API_KEY' });
+    // Voor nu: we simuleren upload en geven een test URL terug
+    // Later kun je echte upload naar imgbb of S3 doen
+    const uploadedUrl = 'https://via.placeholder.com/600x200.png?text=Keyboard+Upload';
 
-    const payload = new URLSearchParams();
-    payload.append('image', image.split(',')[1]);
-    payload.append('name', 'keyboard_' + Date.now());
-
-    const r = await fetch(`https://api.imgbb.com/1/upload?key=${encodeURIComponent(apiKey)}`, {
-      method: 'POST',
-      body: payload
-    });
-
-    const j = await r.json();
-    if (j && j.success && j.data && j.data.url) {
-      return res.status(200).json({ url: j.data.url });
-    } else {
-      console.error('ImgBB response error', j);
-      return res.status(500).json({ error: 'ImgBB upload failed', detail: j });
-    }
+    res.status(200).json({ url: uploadedUrl });
   } catch (err) {
-    console.error('Server error:', err);
-    return res.status(500).json({ error: 'Server exception' });
+    res.status(500).json({ error: err.message });
   }
 }
