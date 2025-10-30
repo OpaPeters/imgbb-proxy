@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  // ✅ CORS headers toestaan
+  // CORS toestaan
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -13,28 +13,31 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { image } = req.body;
-    if (!image) throw new Error('No image received');
+    const { imageBase64 } = req.body;
 
-    // ✅ upload naar imgbb
-    const apiKey = process.env.IMGBB_API_KEY; // Zet deze in Vercel bij "Environment Variables"
-    const imgbbUrl = 'https://api.imgbb.com/1/upload';
-
-    const uploadRes = await fetch(`${imgbbUrl}?key=${apiKey}`, {
-      method: 'POST',
-      body: new URLSearchParams({ image }),
-    });
-
-    const result = await uploadRes.json();
-
-    if (!result.success) {
-      throw new Error(result.error?.message || 'Upload failed');
+    if (!imageBase64) {
+      return res.status(400).json({ error: 'No image data received' });
     }
 
-    // ✅ Stuur correcte URL terug
-    return res.status(200).json({ url: result.data.url });
+    const formData = new FormData();
+    formData.append('image', imageBase64);
+    formData.append('name', `keyboard_${Date.now()}`);
+
+    const response = await fetch(`https://api.imgbb.com/1/upload?key=JOUW_IMGBB_API_KEY`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      return res.status(500).json({ error: 'Upload naar imgbb mislukt', details: data });
+    }
+
+    return res.status(200).json({ imageUrl: data.data.url });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: 'Serverfout tijdens upload' });
   }
 }
+
