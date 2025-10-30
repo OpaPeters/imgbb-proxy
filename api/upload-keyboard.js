@@ -1,4 +1,5 @@
 export default async function handler(req, res) {
+  // ✅ CORS headers toestaan
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -13,9 +14,15 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { image } = req.body;
-  if (!image) return res.status(400).json({ error: 'No image provided' });
+  try {
+    const { image } = req.body;
+    if (!image) throw new Error('No image received');
 
-  // Voor nu simuleren we een upload
-  res.status(200).json({ url: 'https://via.placeholder.com/600x200.png?text=Keyboard' });
+    // 👇 hier kun je later echte upload toevoegen
+    res.status(200).json({
+      url: 'https://via.placeholder.com/600x200.png?text=Keyboard'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 }
