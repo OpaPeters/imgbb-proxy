@@ -8,7 +8,13 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { image } = req.body;
+   let { image } = req.body;
+
+// ✅ strip "data:image/png;base64," van de image string
+if (image.startsWith('data:image')) {
+  image = image.replace(/^data:image\/\w+;base64,/, '');
+}
+
     if (!image) {
       console.error('❌ Geen afbeelding ontvangen');
       return res.status(400).json({ error: 'No image received' });
