@@ -8,16 +8,29 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    let { image } = req.body;
+    // 🔹 Haal base64-waarde uit FormData of JSON body
+    let image;
 
-    // ✅ strip "data:image/png;base64," van de image string
-    if (image && image.startsWith('data:image')) {
-      image = image.replace(/^data:image\/\w+;base64,/, '');
+    if (req.headers['content-type']?.includes('application/json')) {
+      // Komt binnen als JSON
+      ({ image } = req.body);
+    } else {
+      // Komt binnen als multipart/form-data
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const body = Buffer.concat(chunks).toString();
+      const match = body.match(/name="image"\r\n\r\n(.+)/);
+      if (match) image = match[1];
     }
 
     if (!image) {
       console.error('❌ Geen afbeelding ontvangen');
       return res.status(400).json({ error: 'No image received' });
+    }
+
+    // ✅ strip "data:image/png;base64," als dat nog aanwezig is
+    if (image.startsWith('data:image')) {
+      image = image.replace(/^data:image\/\w+;base64,/, '');
     }
 
     const apiKey = process.env.IMGBB_API_KEY;
@@ -28,27 +41,26 @@ export default async function handler(req, res) {
 
     console.log('📤 Uploaden naar imgbb...');
 
-    // ✅ Gebruik FormData (niet URLSearchParams!)
-    const form = new FormData();
-    form.append('image', image);
+    // ✅ Gebruik FormData voor imgbb-upload
+    const formData = new FormData();
+    formData.append('image', image);
 
     const uploadRes = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
       method: 'POST',
-      body: form
+      body: formData,
     });
 
     const result = await uploadRes.json();
     console.log('📦 Antwoord van imgbb:', result);
 
     if (!result.success) {
-      console.error('❌ Upload mislukt:', result);
-      return res.status(500).json({ error: result.error?.message || 'Upload failed' });
+      throw new Error(result.error?.message || 'Upload failed');
     }
 
     // ✅ Alles goed
     res.status(200).json({ url: result.data.url });
   } catch (err) {
-    console.error('💥 Upload error:', err);
+    console.error('💥 Upload error:', err.message);
     res.status(500).json({ error: err.message });
   }
 }
