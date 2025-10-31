@@ -8,14 +8,12 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    // 🔹 Haal base64-waarde uit FormData of JSON body
     let image;
 
+    // 🔹 JSON of multipart herkennen
     if (req.headers['content-type']?.includes('application/json')) {
-      // Komt binnen als JSON
       ({ image } = req.body);
     } else {
-      // Komt binnen als multipart/form-data
       const chunks = [];
       for await (const chunk of req) chunks.push(chunk);
       const body = Buffer.concat(chunks).toString();
@@ -28,7 +26,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'No image received' });
     }
 
-    // ✅ strip "data:image/png;base64," als dat nog aanwezig is
+    // ✅ Strip base64 header
     if (image.startsWith('data:image')) {
       image = image.replace(/^data:image\/\w+;base64,/, '');
     }
@@ -41,7 +39,6 @@ export default async function handler(req, res) {
 
     console.log('📤 Uploaden naar imgbb...');
 
-    // ✅ Gebruik FormData voor imgbb-upload
     const formData = new FormData();
     formData.append('image', image);
 
@@ -57,8 +54,10 @@ export default async function handler(req, res) {
       throw new Error(result.error?.message || 'Upload failed');
     }
 
-    // ✅ Alles goed
-    res.status(200).json({ url: result.data.url });
+    // ✅ Terug in dezelfde structuur als imgbb
+    res.status(200).json({
+      data: { url: result.data.url }
+    });
   } catch (err) {
     console.error('💥 Upload error:', err.message);
     res.status(500).json({ error: err.message });
